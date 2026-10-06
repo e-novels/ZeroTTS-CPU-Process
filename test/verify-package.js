@@ -36,6 +36,9 @@ for (const [index, theme] of (manifest.contributes?.themes || []).entries()) {
 if (fs.existsSync(path.join(root, 'dist/server.js'))) {
   expectedEntries.add('dist/server.js')
 }
+if (fs.existsSync(path.join(root, 'dist/ort-wasm-simd-threaded.wasm'))) {
+  expectedEntries.add('dist/ort-wasm-simd-threaded.wasm')
+}
 
 function scanDir(dir, prefix) {
   if (!fs.existsSync(dir)) return
@@ -52,7 +55,6 @@ function scanDir(dir, prefix) {
 }
 
 scanDir(path.join(root, 'bin'), 'bin')
-scanDir(path.join(root, 'model'), 'models')
 scanDir(path.join(root, 'node_modules', 'onnxruntime-node'), 'node_modules/onnxruntime-node')
 
 assert.deepEqual(entries, [...expectedEntries].sort())

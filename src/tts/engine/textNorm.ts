@@ -154,6 +154,21 @@ const DEFAULT_ABBR_FALLBACK: Record<string, string> = {
   VN: 'Việt Nam'
 }
 
+export function setAbbreviationsContent(raw: string): void {
+  const table = new Map<string, string>()
+  for (const [k, v] of Object.entries(DEFAULT_ABBR_FALLBACK)) {
+    table.set(k, v)
+  }
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#') || !trimmed.includes(':')) continue
+    const idx = trimmed.indexOf(':')
+    const abbr = trimmed.slice(0, idx)
+    if (!table.has(abbr)) table.set(abbr, trimmed.slice(idx + 1).split(',')[0])
+  }
+  abbreviations = table
+}
+
 export function loadAbbreviations(): Map<string, string> {
   if (abbreviations) return abbreviations
   const table = new Map<string, string>()

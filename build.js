@@ -15,6 +15,13 @@ if (fs.existsSync(binServer)) {
   } catch {}
 }
 
+// Ensure dist directory has the WebAssembly binary
+const wasmSrc = path.resolve(root, 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm')
+if (fs.existsSync(wasmSrc)) {
+  fs.mkdirSync(path.join(root, 'dist'), { recursive: true })
+  fs.copyFileSync(wasmSrc, path.join(root, 'dist/ort-wasm-simd-threaded.wasm'))
+}
+
 async function bundle(entryPoint, outfile, platform) {
   const options = {
     entryPoints: [path.join(root, entryPoint)],

@@ -47,9 +47,6 @@ archive.addLocalFolder(path.join(root, 'src', 'public'), 'public')
 if (fs.existsSync(path.join(root, 'bin'))) {
 	archive.addLocalFolder(path.join(root, 'bin'), 'bin')
 }
-if (fs.existsSync(path.join(root, 'model'))) {
-	archive.addLocalFolder(path.join(root, 'model'), 'models')
-}
 if (fs.existsSync(path.join(root, 'node_modules', 'onnxruntime-node'))) {
 	archive.addLocalFolder(path.join(root, 'node_modules', 'onnxruntime-node'), 'node_modules/onnxruntime-node')
 }

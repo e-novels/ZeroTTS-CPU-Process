@@ -2,7 +2,7 @@ import * as ortWeb from 'onnxruntime-web'
 import { BpeTokenizer } from './tokenizer'
 import { MossCodecDecoder, CodecMeta } from './codec'
 import { Rng } from './rng'
-import { normalizeViText } from './textNorm'
+import { normalizeViText, setAbbreviationsContent } from './textNorm'
 import { textSegments } from './chunking'
 import {
   ZeroTTSConfig,
@@ -292,21 +292,29 @@ export class ZeroTTSEngine {
         ...LOCAL_CANDIDATES,
         './models',
         '../models',
-        '/Users/dovanhai/ZeroTTS-CPU/model',
+        '.',
+        '..',
         typeof __dirname !== 'undefined' && nodePath ? nodePath.join(__dirname, 'model') : null,
         typeof __dirname !== 'undefined' && nodePath ? nodePath.join(__dirname, 'models') : null,
         typeof __dirname !== 'undefined' && nodePath ? nodePath.join(__dirname, '../model') : null,
         typeof __dirname !== 'undefined' && nodePath ? nodePath.join(__dirname, '../models') : null,
+        typeof __dirname !== 'undefined' && nodePath ? nodePath.join(__dirname, '..') : null,
+        typeof __dirname !== 'undefined' && nodePath ? __dirname : null,
       ].filter(Boolean) as string[]
 
+      const cleanPath = normalized.replace(/^models?\//, '')
+      const testNames = [normalized, `models/${cleanPath}`, `model/${cleanPath}`, cleanPath]
+
       for (const candidate of diskDirs) {
-        try {
-          const full = nodePath ? nodePath.join(candidate, normalized) : `${candidate}/${normalized}`
-          if (nodeFs.existsSync(full)) {
-            const buf = nodeFs.readFileSync(full)
-            return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length) as ArrayBuffer
-          }
-        } catch {}
+        for (const sub of testNames) {
+          try {
+            const full = nodePath ? nodePath.join(candidate, sub) : `${candidate}/${sub}`
+            if (nodeFs.existsSync(full) && !nodeFs.statSync(full).isDirectory()) {
+              const buf = nodeFs.readFileSync(full)
+              return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length) as ArrayBuffer
+            }
+          } catch {}
+        }
       }
     }
 
@@ -360,9 +368,10 @@ export class ZeroTTSEngine {
         ...LOCAL_CANDIDATES,
         './dist',
         '../dist',
-        '/Users/dovanhai/ZeroTTS-CPU/dist',
+        '.',
         typeof __dirname !== 'undefined' && nodePath ? nodePath.join(__dirname, 'dist') : null,
         typeof __dirname !== 'undefined' && nodePath ? nodePath.join(__dirname, '../dist') : null,
+        typeof __dirname !== 'undefined' && nodePath ? __dirname : null,
       ].filter(Boolean) as string[]
 
       for (const dir of candidates) {
@@ -432,6 +441,15 @@ export class ZeroTTSEngine {
       )
 
       try {
+        // 0. Load abbreviations.txt if available
+        const abbrBuf = await this.getBuffer('abbreviations.txt')
+        if (abbrBuf && abbrBuf.byteLength > 10) {
+          try {
+            const raw = new TextDecoder().decode(abbrBuf)
+            setAbbreviationsContent(raw)
+          } catch {}
+        }
+
         // 1. Load config.json
         const configBuf = await this.getBuffer('config.json')
         if (configBuf && configBuf.byteLength > 10) {

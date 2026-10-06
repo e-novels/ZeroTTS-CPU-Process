@@ -5,6 +5,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const runTTSContractTests = require('./contract.test')
 const runCpuCoresTests = require('./cpu-cores.test')
+const runZeroTTSTests = require('./zerotts.test')
 
 module.exports = async function runTtsTests(root, manifest) {
   assert.equal(manifest.icon, './public/icon.png')
@@ -121,6 +122,7 @@ module.exports = async function runTtsTests(root, manifest) {
   try {
     await runCpuCoresTests(root, manifest)
     await Promise.all([smokeBundle('index.js'), smokeBundle('browser.js')])
+    await runZeroTTSTests(root)
     console.log(`[${manifest.displayName}] TTS (${ttsMode}) profile tests passed`)
   } catch (error) {
     console.error(error)
