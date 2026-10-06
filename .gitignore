@@ -1,3 +1,7 @@
 dist/
 node_modules/
+model/
+models/
 *.zip
+*.wav
+.DS_Store

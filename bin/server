@@ -1,0 +1,48 @@
+#!/bin/sh
+set -e
+
+DIR="$(cd "$(dirname "$0")" && pwd)"
+EXT_ROOT="$(cd "$DIR/.." && pwd)"
+SERVER_JS="$EXT_ROOT/dist/server.js"
+
+# Optimize OpenMP and multi-core CPU threading for ONNX Runtime (100% CPU power)
+export OMP_WAIT_POLICY=PASSIVE
+export KMP_BLOCKTIME=0
+export NODE_PATH="$EXT_ROOT/node_modules:$NODE_PATH"
+
+# 1. Try system node in PATH
+if command -v node >/dev/null 2>&1; then
+    exec node "$SERVER_JS" "$@"
+fi
+
+# 2. Try standard Homebrew / Unix Node paths
+if [ -x "/opt/homebrew/bin/node" ]; then
+    exec /opt/homebrew/bin/node "$SERVER_JS" "$@"
+fi
+if [ -x "/usr/local/bin/node" ]; then
+    exec /usr/local/bin/node "$SERVER_JS" "$@"
+fi
+
+# 3. Try NVM installed versions
+for nvm_node in "$HOME"/.nvm/versions/node/*/bin/node; do
+    if [ -x "$nvm_node" ]; then
+        exec "$nvm_node" "$SERVER_JS" "$@"
+    fi
+done
+
+# 4. Use E-novels Electron runtime itself (contains Node.js v22+)
+if [ -x "/Applications/E-novels.app/Contents/MacOS/E-novels" ]; then
+    export ELECTRON_RUN_AS_NODE=1
+    exec "/Applications/E-novels.app/Contents/MacOS/E-novels" "$SERVER_JS" "$@"
+fi
+
+# 5. Linux common Electron paths
+for linux_bin in /usr/bin/e-novels /opt/E-novels/e-novels /usr/local/bin/e-novels; do
+    if [ -x "$linux_bin" ]; then
+        export ELECTRON_RUN_AS_NODE=1
+        exec "$linux_bin" "$SERVER_JS" "$@"
+    fi
+done
+
+echo "ZeroTTS Process Error: Node.js runtime not found on this system." >&2
+exit 1

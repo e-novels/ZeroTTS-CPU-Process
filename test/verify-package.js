@@ -28,11 +28,34 @@ const expectedEntries = new Set([
   toArchivePath(manifest.browser, 'browser'),
   toArchivePath(manifest.icon, 'icon')
 ])
+
 for (const [index, theme] of (manifest.contributes?.themes || []).entries()) {
   expectedEntries.add(toArchivePath(theme.path, `contributes.themes[${index}].path`))
 }
 
+if (fs.existsSync(path.join(root, 'dist/server.js'))) {
+  expectedEntries.add('dist/server.js')
+}
+
+function scanDir(dir, prefix) {
+  if (!fs.existsSync(dir)) return
+  for (const item of fs.readdirSync(dir).sort()) {
+    const full = path.join(dir, item)
+    const p = `${prefix}/${item}`
+    if (fs.statSync(full).isDirectory()) {
+      expectedEntries.add(`${p}/`)
+      scanDir(full, p)
+    } else {
+      expectedEntries.add(p)
+    }
+  }
+}
+
+scanDir(path.join(root, 'bin'), 'bin')
+scanDir(path.join(root, 'model'), 'models')
+scanDir(path.join(root, 'node_modules', 'onnxruntime-node'), 'node_modules/onnxruntime-node')
+
 assert.deepEqual(entries, [...expectedEntries].sort())
 assert.equal(entries.includes('manifest.json'), false)
 
-console.log(`[${manifest.displayName}] Package archive verified`)
+console.log(`[${manifest.displayName}] Package archive verified successfully!`)

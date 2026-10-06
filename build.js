@@ -7,20 +7,32 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'extension.json'), '
 const extensionKind = manifest.starter?.kind
 const isWatch = process.argv.includes('--watch') || process.argv.includes('-w')
 
-async function bundle(outfile, platform) {
+// Ensure bin/server is executable on Unix systems
+const binServer = path.join(root, 'bin', 'server')
+if (fs.existsSync(binServer)) {
+  try {
+    fs.chmodSync(binServer, 0o755)
+  } catch {}
+}
+
+async function bundle(entryPoint, outfile, platform) {
   const options = {
-    entryPoints: [path.join(root, 'src/index.ts')],
+    entryPoints: [path.join(root, entryPoint)],
     outfile: path.join(root, outfile),
     bundle: true,
     format: 'cjs',
-    platform,
-    mainFields: platform === 'browser' ? ['browser', 'module', 'main'] : ['module', 'main'],
+    platform: platform,
+    mainFields: ['main'],
     target: 'es2022',
     legalComments: 'none',
     minify: false,
     define: {
       __NOVEL_EXTENSION_KIND__: JSON.stringify(extensionKind)
-    }
+    },
+    alias: {
+      'onnxruntime-web': path.resolve(root, 'node_modules/onnxruntime-web/dist/ort.wasm.bundle.min.mjs')
+    },
+    external: ['onnxruntime-node']
   }
 
   if (isWatch) {
@@ -33,8 +45,9 @@ async function bundle(outfile, platform) {
 }
 
 Promise.all([
-  bundle('dist/index.js', 'neutral'),
-  bundle('dist/browser.js', 'browser')
+  bundle('src/index.ts', 'dist/index.js', 'node'),
+  bundle('src/index.ts', 'dist/browser.js', 'browser'),
+  bundle('src/tts/processMode/server.ts', 'dist/server.js', 'node')
 ]).catch(error => {
   console.error(error)
   process.exitCode = 1

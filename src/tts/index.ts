@@ -1,77 +1,64 @@
 import { ProcessBridge } from './processMode/bridge'
-import { CloudBridge } from './cloudMode/bridge'
-import { WasmBridge } from './wasmMode/bridge'
+
+export { ProcessBridge } from './processMode/bridge'
+export { ZeroTTSEngine, CPU_COUNT, getOptimalCpuThreads } from './engine/ZeroTTSEngine'
+export { BpeTokenizer } from './engine/tokenizer'
+export { MossCodecDecoder } from './engine/codec'
+export * from './engine/types'
+export * from './engine/wavHelper'
 
 export async function activateTTS(novel: NovelExtensionApi): Promise<void> {
   if (!novel.tts) return
-  const mode = novel.extension?.manifest?.contributes?.tts?.mode || 'process'
 
-  let speakFn: (params: ExtensionTTSSpeakRequest) => Promise<ExtensionTTSSpeakResponse>
+  await novel.logger?.info?.('[activateTTS] Registering ZeroTTS Native Process Handlers...')
 
-  if (mode === 'process') {
-    const bridge = new ProcessBridge(novel)
-    speakFn = async (params: ExtensionTTSSpeakRequest) => bridge.sendCommand('speak', params)
-    await novel.tts.register({
-      getVoices: async () => {
-        if (!novel.process) {
-          throw new Error('novel.process is only available on Electron Desktop.')
-        }
-        await bridge.startProcess('bin/server')
-        return await bridge.sendCommand('getVoices', {})
-      },
-      speak: speakFn,
-      stop: async () => {
-        return await bridge.sendCommand('stop', {})
-      }
-    })
-  } else if (mode === 'cloud') {
-    const bridge = new CloudBridge(novel)
-    speakFn = async (params: ExtensionTTSSpeakRequest) => bridge.speak(params)
-    await novel.tts.register({
-      getVoices: async () => bridge.getVoices(),
-      speak: speakFn,
-      stop: async () => bridge.stop()
-    })
-  } else if (mode === 'wasm') {
-    const bridge = new WasmBridge(novel)
-    speakFn = async (params: ExtensionTTSSpeakRequest) => bridge.speak(params)
-    await novel.tts.register({
-      getVoices: async () => bridge.getVoices(),
-      speak: speakFn,
-      stop: async () => bridge.stop()
-    })
-  }
+  const bridge = new ProcessBridge(novel)
+  await novel.tts.register({
+    getVoices: async () => bridge.getVoices(),
+    speak: async (params: ExtensionTTSSpeakRequest) => bridge.speak(params),
+    stop: async () => bridge.stop(),
+  })
 
   // Register settings action for voice previewing
   if (novel.settings) {
     await novel.settings.register({
       previewVoice: async (fieldValues: Record<string, unknown>) => {
-        const voiceId = typeof fieldValues.voice === 'string' ? fieldValues.voice : undefined
+        const voiceId = typeof fieldValues.voice === 'string' ? fieldValues.voice : 'maichi'
         const previewText =
           typeof fieldValues.previewText === 'string' && fieldValues.previewText.trim()
             ? fieldValues.previewText.trim()
-            : 'This is a sample speech synthesis test.'
+            : 'Xin chào, đây là giọng đọc tiếng Việt nhân tạo chất lượng cao chạy trên CPU.'
+
+        await novel.logger?.info?.(
+          `[Settings.previewVoice] Triggered with voiceId=${voiceId}, text="${previewText}"`
+        )
 
         try {
-          const result = await speakFn({
+          if (!novel.process) {
+            throw new Error('novel.process is only available on Electron Desktop.')
+          }
+          await bridge.startProcess('bin/server')
+          const result = await bridge.sendCommand('speak', {
             text: previewText,
-            voiceId
+            voiceId,
+            config: fieldValues,
           })
 
           return {
             success: true,
-            message: `Synthesized sample audio (${voiceId || 'default voice'})`,
+            message: `Đã tổng hợp âm thanh mẫu (${voiceId})`,
             audio: result.audio,
-            mimeType: result.mimeType || 'audio/wav'
+            mimeType: result.mimeType || 'audio/wav',
           }
         } catch (err: unknown) {
+          const errMsg = err instanceof Error ? err.message : String(err)
+          await novel.logger?.error?.(`[Settings.previewVoice] Error: ${errMsg}`)
           return {
             success: false,
-            message: err instanceof Error ? err.message : String(err)
+            message: errMsg,
           }
         }
-      }
+      },
     })
   }
 }
-

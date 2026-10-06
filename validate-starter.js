@@ -14,7 +14,8 @@ const allowedPermissions = new Set([
   'ui.sidebar',
   'reader',
   'tts',
-  'translate'
+  'translate',
+  'process'
 ])
 const scraperCapabilities = new Set([
   'search',

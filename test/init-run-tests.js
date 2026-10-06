@@ -24,8 +24,14 @@ function createTemplate(target) {
   fs.mkdirSync(path.join(target, 'test', 'tts'), { recursive: true })
   fs.mkdirSync(path.join(target, 'test', 'scraper'), { recursive: true })
 
-  fs.copyFileSync(path.join(root, 'extension.json'), path.join(target, 'extension.json'))
-  fs.copyFileSync(path.join(root, 'src', 'scraper', 'index.ts'), path.join(target, 'src', 'scraper', 'index.ts'))
+  const baseManifest = JSON.parse(fs.readFileSync(path.join(root, 'extension.json'), 'utf8'))
+  baseManifest.name = 'example-extension'
+  fs.writeFileSync(path.join(target, 'extension.json'), JSON.stringify(baseManifest, null, 2))
+  if (fs.existsSync(path.join(root, 'src', 'scraper', 'index.ts'))) {
+    fs.copyFileSync(path.join(root, 'src', 'scraper', 'index.ts'), path.join(target, 'src', 'scraper', 'index.ts'))
+  } else {
+    fs.writeFileSync(path.join(target, 'src', 'scraper', 'index.ts'), "const BASE_URL = 'https://example.com'\n")
+  }
   fs.copyFileSync(path.join(root, 'src', 'tts', 'index.ts'), path.join(target, 'src', 'tts', 'index.ts'))
   fs.writeFileSync(path.join(target, 'src', 'types', 'scraper.d.ts'), '')
   fs.writeFileSync(path.join(target, 'src', 'types', 'theme.d.ts'), '')
