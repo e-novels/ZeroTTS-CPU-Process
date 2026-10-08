@@ -19,6 +19,19 @@ export async function activateTTS(novel: NovelExtensionApi): Promise<void> {
     stop: async () => bridge.stop(),
   })
 
+  // Preload / warm-up: Khởi động process và nạp sẵn model trong nền ngay sau khi kích hoạt
+  if (novel.process) {
+    bridge
+      .startProcess('bin/server')
+      .then(() => {
+        novel.logger?.info?.('🎉 ZeroTTS Native Process started and pre-warming in background!')
+      })
+      .catch((err: unknown) => {
+        const errMsg = err instanceof Error ? err.message : String(err)
+        novel.logger?.warn?.(`[ZeroTTS Process] Background preload note: ${errMsg}`)
+      })
+  }
+
   // Register settings action for voice previewing
   if (novel.settings) {
     await novel.settings.register({
